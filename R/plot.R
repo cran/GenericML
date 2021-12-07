@@ -4,7 +4,7 @@
 #'
 #' @param x An instance of \code{\link{GenericML}}.
 #' @param type The analysis whose parameters shall be plotted. Either \code{"GATES"}, \code{"BLP"}, or \code{"CLAN"}. Default is \code{"GATES"}.
-#' @param learner The learner whose results are to be returned. Default is \code{"best"} for the best learner as measured by the \eqn{Lambda} parameters.
+#' @param learner The learner whose results are to be returned. Default is \code{"best"} for the best learner as measured by the \eqn{\Lambda} parameters.
 #' @param CLAN_variable Name of the CLAN variable to be plotted. Only applicable if \code{type = "CLAN"}.
 #' @param groups Character vector indicating the per-group parameter estimates that shall be plotted in GATES and CLAN analyses. Default is \code{"all"} for all parameters. If there are \eqn{K} groups, this variable is a subset of \code{c("G1", "G2",...,"GK", "G1-G2", "G1-G2",..., "G1-GK", "GK-G1", "GK-G2",...)}, where Gk denotes the k-th group. Note that this set depends on the choices of the arguments \code{"diff_GATES"} and \code{"diff_CLAN"} of the \code{\link{GenericML}} object.
 #' @param limits The limits of the y-axis of the plot.
@@ -24,7 +24,7 @@
 #' @import ggplot2
 #'
 #' @examples
-#' if(require("glmnet")) {
+#' if(require("ranger")) {
 #'
 #' ## generate data
 #' set.seed(1)
@@ -40,7 +40,7 @@
 #' colnames(Z) <- paste0("V", 1:p)
 #'
 #' ## specify learners
-#' learners <- c("lasso")
+#' learners <- c("random_forest")
 #'
 #' ## specify quantile cutoffs (the 4 quartile groups here)
 #' quantile_cutoffs <- c(0.25, 0.5, 0.75)
