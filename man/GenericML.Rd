@@ -22,6 +22,7 @@ GenericML(
   vcov_GATES = setup_vcov(),
   equal_variances_CLAN = FALSE,
   prop_aux = 0.5,
+  stratify = setup_stratify(),
   significance_level = 0.05,
   min_variation = 1e-05,
   parallel = TrueIfUnix(),
@@ -64,13 +65,15 @@ GenericML(
 
 \item{equal_variances_CLAN}{Logical. If \code{TRUE}, then all within-group variances of the CLAN groups are assumed to be equal. Default is \code{FALSE}. This specification is required for heteroskedasticity-robust variance estimation on the difference of two CLAN generic targets (i.e. variance of the difference of two means). If \code{TRUE} (corresponds to homoskedasticity assumption), the pooled variance is used. If \code{FALSE} (heteroskedasticity), the variance of Welch's t-test is used.}
 
-\item{prop_aux}{Proportion of samples that shall be in the auxiliary set. Default is 0.5. The number of samples in the auxiliary set will be equal to \code{floor(prop_aux * length(Y))}. If the data set is large, you can save computing time by choosing \code{prop_aux} to be smaller than 0.5.}
+\item{prop_aux}{Proportion of samples that shall be in the auxiliary set in case of random sample splitting. Default is 0.5. The number of samples in the auxiliary set will be equal to \code{floor(prop_aux * length(Y))}. If the data set is large, you can save computing time by choosing \code{prop_aux} to be smaller than 0.5. In case of stratified sampling (controlled through the argument \code{stratify} via \code{\link{setup_stratify}}), \code{prop_aux} does not have an effect, and the number of samples in the auxiliary set is specified via \code{\link{setup_stratify}}.}
+
+\item{stratify}{A list that specifies whether or not stratified sample splitting shall be performed. It is recommended to use the returned object of \code{\link{setup_stratify}} as this list. See the documentation of \code{\link{setup_stratify}} for details.}
 
 \item{significance_level}{Significance level for VEIN. Default is 0.05.}
 
 \item{min_variation}{Specifies a threshold for the minimum variation of the BCA/CATE predictions. If the variation of a BCA/CATE prediction falls below this threshold, random noise with distribution \eqn{N(0, var(Y)/20)} is added to it. Default is \code{1e-05}.}
 
-\item{parallel}{Logical. If \code{TRUE}, parallel computing will be used. Currently only supported for Unix systems.}
+\item{parallel}{Logical. If \code{TRUE}, parallel computing will be used. On Unix systems, this will be done via forking (shared memory across threads). On non-Unix systems, this will be done through parallel socket clusters.}
 
 \item{num_cores}{Number of cores to be used in parallelization (if applicable). Default is the number of cores of the user's machine.}
 
@@ -88,6 +91,7 @@ An object of class \code{GenericML}. On this object, we recommend to use the acc
 \item{\code{propensity_scores}}{The propensity score estimates as well as the \code{mlr3} objects used to estimate them (if \code{mlr3} was used for estimation).}
 \item{\code{GenericML_single}}{Only nonempty if \code{store_learners = TRUE}. Contains all intermediate results of each learners for each split. That is, for a given learner (first level of the list) and split (second level),  objects of classes \code{\link{BLP}}, \code{\link{GATES}}, \code{\link{CLAN}}, \code{\link{proxy_BCA}}, \code{\link{proxy_CATE}} as well as the \eqn{\Lambda} criteria (\code{"best"})) are listed, which were computed with the given learner and split.}
 \item{\code{splits}}{Only nonempty if \code{store_splits = TRUE}. Contains a character matrix of dimension \code{length(Y)} by \code{num_splits}. Contains the group membership (main or auxiliary) of each observation (rows) in each split (columns). \code{"M"} denotes the main set, \code{"A"} the auxiliary set.}
+\item{\code{generic_targets}}{A list of generic target estimates for each learner. More specifically, each component is a list of the generic target estimates pertaining to the BLP, GATES, and CLAN analyses. Each of those lists contains a three-dimensional array containing the generic targets of a single learner for all sample splits (except CLAN where there is one more layer of lists).}
 \item{\code{arguments}}{A list of arguments used in the function call.}
 }
 }
@@ -95,7 +99,7 @@ An object of class \code{GenericML}. On this object, we recommend to use the acc
 Performs generic machine learning inference on heterogeneous treatment effects as in \href{https://arxiv.org/abs/1712.04802}{Chernozhukov, Demirer, Duflo and Fernández-Val (2020)} with user-specified machine learning methods. Intended for randomized experiments.
 }
 \details{
-The specifications \code{lasso}, \code{random_forest}, and \code{tree} in \code{learners_GenericML} and \code{learner_propensity_score} correspond to the following \code{mlr3} specifications (we omit the keywords \code{classif.} and \code{regr.}). \code{lasso} is a cross-validated Lasso estimator, which corresponds to \code{'mlr3::lrn("cv_glmnet", s = "lambda.min", alpha = 1)'}. \code{random_forest} is a random forest with 500 trees, which corresponds to \code{'mlr3::lrn("ranger", num.trees = 500)'}. \code{tree} is a tree learner, which corresponds to \code{'mlr3::lrn("rpart")'}.
+The specifications \code{lasso}, \code{random_forest}, and \code{tree} in \code{learners_GenericML} and \code{learner_propensity_score} correspond to the following \code{mlr3} specifications (we omit the keywords \code{classif.} and \code{regr.}). \code{lasso} is a cross-validated Lasso estimator, which corresponds to \code{'mlr3::lrn("cv_glmnet", s = "lambda.min", alpha = 1)'}. \code{random_forest} is a random forest with 500 trees, which corresponds to \code{'mlr3::lrn("ranger", num.trees = 500)'}. \code{tree} is a tree learner, which corresponds to \code{'mlr3::lrn("rpart")'}. \strong{Warning:} \code{\link{GenericML}} can be quite memory-intensive, in particular when the data set is large. To alleviate memory usage, consider setting \code{store_learners = FALSE}, choosing a low number of cores via \code{num_cores} (at the expense of longer computing time), setting \code{prop_aux} to a value smaller than the default of 0.5, or using \code{\link{GenericML_combine}}.
 }
 \note{
 In an earlier development version, Lucas Kitzmueller alerted us to several minor bugs and proposed fixes. Many thanks to him!
@@ -167,5 +171,7 @@ Lang M., Binder M., Richter J., Schratz P., Pfisterer F., Coors S., Au Q., Casal
 \code{\link{setup_X1}},
 \code{\link{setup_diff}},
 \code{\link{setup_vcov}},
-\code{\link{GenericML_single}}
+\code{\link{setup_stratify}},
+\code{\link{GenericML_single}},
+\code{\link{GenericML_combine}}
 }

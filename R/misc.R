@@ -425,10 +425,10 @@ lambda_parameters <- function(BLP,
                               proxy_CATE,
                               membership){
 
-  if(class(BLP) != "BLP"){
+  if(!isa(x = BLP, what = "BLP")){
     stop("The BLP object must be an instance of BLP()")
   }
-  if(class(GATES) != "GATES"){
+  if(!isa(x = GATES, what = "GATES")){
     stop("The GATES object must be an instance of GATES()")
   }
   InputChecks_group.membership(membership)
@@ -461,43 +461,5 @@ lambda_parameters_NoChecks <- function(BLP,
 
   return(list(lambda = BLP$coefficients["beta.2", "Estimate"]^2 * stats::var(proxy_CATE),
               lambda.bar = as.numeric(colMeans(membership) %*%  gates.coefs^2)))
-
-} # FUN
-
-
-#' performs stratified sampling
-#' @param group The column or columns that should be used to create the groups. Can be a character vector of column names (recommended) or a numeric vector of column.
-#' @param relative.size proportional to the number of observations per group.
-#' @param select A named list containing levels from the "group" variables in which you are interested. The list names must be present as variable names for the input dataset.
-#'
-#' #################################################
-#' The function below effectively does the following:
-#' DF <- data.frame(
-# ID = 1:100,
-# A = sample(c("AA", "BB", "CC", "DD", "EE"), 100, replace = TRUE),
-# B = rnorm(100), C = abs(round(rnorm(100), digits=1)),
-# D = sample(c("CA", "NY", "TX"), 100, replace = TRUE),
-# E = sample(c("M", "F"), 100, replace = TRUE))
-#
-# group = DF[,c("E", "D")] # user supplied. This matrix/vector needs to contain group values
-# select = list(E = "M", D = c("CA", "TX")) # user supplied with levels
-#
-# group <- as.matrix(group) # TODO: if select doesn't specify levels?
-#
-# eligible.samples <- lapply(colnames(group), function(j) which(group[,j] %in% select[[j]]) ) # select samples that satisfy the selection criteria within each group
-# pool <- sort(Reduce(intersect, eligible.samples)) # find intersection of groupwise eligible samples
-# sample(pool, floor(length(pool) * relative.size)) # sample from the pool
-#
-#  !!!!!!!!! there is a number of potential issues here: !!!!!!!!!
-# 1. it holds that |stratified samples| <= nrow(group) * relative size. Thus, the strata can become VERY small, which is not optimal for fitting a ML method.
-# 2. statistical concern: this is nonrandom sample selection, hence it might induce a sampling bias.
-# 3. What shall the role of the strata be? Shall it be the A set or the M set? Suppose it is the A set, is the A set then [n]\A or pool\A? The second option implies that we effectively only work on the pool.
-#'
-#' @noRd
-stratified <- function(group, relative.size, select = NULL){
-
-  # perform stratified sampling
-  smpl <- splitstackshape::stratified(indt = group, group = group, size = relative.size, select = select)
-  return(sort(smpl$ID))
 
 } # FUN

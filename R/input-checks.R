@@ -74,7 +74,7 @@ InputChecks_Z_CLAN <- function(Z_CLAN){
 # helper that throws error in case of illegal input in 'X1_control'
 InputChecks_X1 <- function(X1_control, num.obs){
 
-  if(class(X1_control) != "setup_X1"){
+  if(!isa(x = X1_control, what = "setup_X1")){
     stop(paste0(deparse(substitute(X1_control))),
          " must be an instance of setup_X1()", call. = FALSE)
   } # IF
@@ -105,7 +105,7 @@ InputChecks_X1 <- function(X1_control, num.obs){
 
 InputChecks_vcov.control <- function(vcov_control){
 
-  if(class(vcov_control) != "setup_vcov"){
+  if(!isa(x = vcov_control, what = "setup_vcov")){
     stop(paste0(deparse(substitute(vcov_control))),
                 " must be an instance of setup_vcov()", call. = FALSE)
   } # IF
@@ -115,7 +115,7 @@ InputChecks_vcov.control <- function(vcov_control){
 
 InputChecks_diff <- function(diff, K){
 
-  if(class(diff) != "setup_diff"){
+  if(!isa(x = diff, what = "setup_diff")){
     stop(paste0(deparse(substitute(diff))),
          " must be an instance of setup_diff()", call. = FALSE)
   } # IF
@@ -269,6 +269,55 @@ InputChecks_index_set <- function(set, num_obs){
   }
 
 } # FUN
+
+
+InputChecks_GenericML_combine <- function(x)
+{
+  stopifnot(is.list(x))
+  m <- length(x)
+  if(!all(sapply(1:m, function(i) inherits(x[[i]], "GenericML"))))
+  {
+    stop("All objects in the list 'x' must be objects of class 'GenericML'")
+  } # IF
+
+  args_ls <- lapply(1:m, function(i){
+    args <- x[[i]]$arguments
+    args[-which(names(args) %in% c("num_splits", "parallel", "num_cores", "seed", "store_learners"))]
+  })
+
+  if(!all(sapply(args_ls, identical, args_ls[[1]])))
+  {
+    stop(paste0("All GenericML objects in the list 'x' must have the exact same",
+                " parameter specifications in their original call to GenericML(),",
+                " except for the parameters 'num_splits', 'parallel', 'num_cores',",
+                " 'seed', and 'store_learners'."))
+  } # IF
+} # FUN
+
+
+# check list of arguments that specifies stratified sampling technique
+InputChecks_stratify <- function(args_stratified)
+{
+
+  ## ensure that 'args_stratified' is a list
+  if(!is.list(args_stratified)){
+    stop("'args_stratified' must be a list, for instance as returned by setup_stratify()",
+         call. = FALSE)
+  } # IF
+
+
+  ## if stratified sampling:
+  # check that all necessary arguments for splitstackshape::stratified are passed
+  if(length(args_stratified) > 0L){
+
+    if(!all(c("indt", "group", "size") %in% names(args_stratified))){
+      stop(paste0("splitstackshape::stratified requires at least the arguments ",
+                  "'indt', 'group', and 'size', which were not passed to setup_stratify().",
+                  " See ?splitstackshape::stratified for details." ), call. = FALSE)
+    } # IF
+  } # IF
+} # FUN
+
 
 
 #' Check if user's OS is a Unix system

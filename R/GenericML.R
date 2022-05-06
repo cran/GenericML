@@ -18,10 +18,11 @@
 #' @param vcov_BLP Specifies the covariance matrix estimator in the BLP regression. Must be an instance of \code{\link{setup_vcov}}. See the documentation of \code{\link{setup_vcov}} for details.
 #' @param vcov_GATES Same as \code{vcov_BLP}, just for the GATES regression.
 #' @param equal_variances_CLAN Logical. If \code{TRUE}, then all within-group variances of the CLAN groups are assumed to be equal. Default is \code{FALSE}. This specification is required for heteroskedasticity-robust variance estimation on the difference of two CLAN generic targets (i.e. variance of the difference of two means). If \code{TRUE} (corresponds to homoskedasticity assumption), the pooled variance is used. If \code{FALSE} (heteroskedasticity), the variance of Welch's t-test is used.
-#' @param prop_aux Proportion of samples that shall be in the auxiliary set. Default is 0.5. The number of samples in the auxiliary set will be equal to \code{floor(prop_aux * length(Y))}. If the data set is large, you can save computing time by choosing \code{prop_aux} to be smaller than 0.5.
+#' @param prop_aux Proportion of samples that shall be in the auxiliary set in case of random sample splitting. Default is 0.5. The number of samples in the auxiliary set will be equal to \code{floor(prop_aux * length(Y))}. If the data set is large, you can save computing time by choosing \code{prop_aux} to be smaller than 0.5. In case of stratified sampling (controlled through the argument \code{stratify} via \code{\link{setup_stratify}}), \code{prop_aux} does not have an effect, and the number of samples in the auxiliary set is specified via \code{\link{setup_stratify}}.
+#' @param stratify A list that specifies whether or not stratified sample splitting shall be performed. It is recommended to use the returned object of \code{\link{setup_stratify}} as this list. See the documentation of \code{\link{setup_stratify}} for details.
 #' @param significance_level Significance level for VEIN. Default is 0.05.
 #' @param min_variation Specifies a threshold for the minimum variation of the BCA/CATE predictions. If the variation of a BCA/CATE prediction falls below this threshold, random noise with distribution \eqn{N(0, var(Y)/20)} is added to it. Default is \code{1e-05}.
-#' @param parallel Logical. If \code{TRUE}, parallel computing will be used. Currently only supported for Unix systems.
+#' @param parallel Logical. If \code{TRUE}, parallel computing will be used. On Unix systems, this will be done via forking (shared memory across threads). On non-Unix systems, this will be done through parallel socket clusters.
 #' @param num_cores Number of cores to be used in parallelization (if applicable). Default is the number of cores of the user's machine.
 #' @param seed Random seed. Default is \code{NULL} for no random seeding.
 #' @param store_learners Logical. If \code{TRUE}, all intermediate results of the learners will be stored. That is, for each learner and each split, all BCA and CATE predictions as well as all BLP, GATES, CLAN, and \eqn{\Lambda} estimates will be stored. Default is \code{FALSE}.
@@ -35,11 +36,12 @@
 #'   \item{\code{propensity_scores}}{The propensity score estimates as well as the \code{mlr3} objects used to estimate them (if \code{mlr3} was used for estimation).}
 #'   \item{\code{GenericML_single}}{Only nonempty if \code{store_learners = TRUE}. Contains all intermediate results of each learners for each split. That is, for a given learner (first level of the list) and split (second level),  objects of classes \code{\link{BLP}}, \code{\link{GATES}}, \code{\link{CLAN}}, \code{\link{proxy_BCA}}, \code{\link{proxy_CATE}} as well as the \eqn{\Lambda} criteria (\code{"best"})) are listed, which were computed with the given learner and split.}
 #'   \item{\code{splits}}{Only nonempty if \code{store_splits = TRUE}. Contains a character matrix of dimension \code{length(Y)} by \code{num_splits}. Contains the group membership (main or auxiliary) of each observation (rows) in each split (columns). \code{"M"} denotes the main set, \code{"A"} the auxiliary set.}
+#'   \item{\code{generic_targets}}{A list of generic target estimates for each learner. More specifically, each component is a list of the generic target estimates pertaining to the BLP, GATES, and CLAN analyses. Each of those lists contains a three-dimensional array containing the generic targets of a single learner for all sample splits (except CLAN where there is one more layer of lists).}
 #'   \item{\code{arguments}}{A list of arguments used in the function call.}
 #'   }
 #'
 #' @details
-#' The specifications \code{lasso}, \code{random_forest}, and \code{tree} in \code{learners_GenericML} and \code{learner_propensity_score} correspond to the following \code{mlr3} specifications (we omit the keywords \code{classif.} and \code{regr.}). \code{lasso} is a cross-validated Lasso estimator, which corresponds to \code{'mlr3::lrn("cv_glmnet", s = "lambda.min", alpha = 1)'}. \code{random_forest} is a random forest with 500 trees, which corresponds to \code{'mlr3::lrn("ranger", num.trees = 500)'}. \code{tree} is a tree learner, which corresponds to \code{'mlr3::lrn("rpart")'}.
+#' The specifications \code{lasso}, \code{random_forest}, and \code{tree} in \code{learners_GenericML} and \code{learner_propensity_score} correspond to the following \code{mlr3} specifications (we omit the keywords \code{classif.} and \code{regr.}). \code{lasso} is a cross-validated Lasso estimator, which corresponds to \code{'mlr3::lrn("cv_glmnet", s = "lambda.min", alpha = 1)'}. \code{random_forest} is a random forest with 500 trees, which corresponds to \code{'mlr3::lrn("ranger", num.trees = 500)'}. \code{tree} is a tree learner, which corresponds to \code{'mlr3::lrn("rpart")'}. **Warning:** \code{\link{GenericML}} can be quite memory-intensive, in particular when the data set is large. To alleviate memory usage, consider setting \code{store_learners = FALSE}, choosing a low number of cores via \code{num_cores} (at the expense of longer computing time), setting \code{prop_aux} to a value smaller than the default of 0.5, or using \code{\link{GenericML_combine}}.
 #'
 #'
 #' @note In an earlier development version, Lucas Kitzmueller alerted us to several minor bugs and proposed fixes. Many thanks to him!
@@ -58,7 +60,9 @@
 #' \code{\link{setup_X1}},
 #' \code{\link{setup_diff}},
 #' \code{\link{setup_vcov}},
-#' \code{\link{GenericML_single}}
+#' \code{\link{setup_stratify}},
+#' \code{\link{GenericML_single}},
+#' \code{\link{GenericML_combine}}
 #'
 #' @examples
 #' if (require("glmnet") && require("ranger")) {
@@ -128,6 +132,7 @@ GenericML <- function(Z, D, Y,
                       vcov_GATES               = setup_vcov(),
                       equal_variances_CLAN     = FALSE,
                       prop_aux                 = 0.5,
+                      stratify                 = setup_stratify(),
                       significance_level       = 0.05,
                       min_variation            = 1e-05,
                       parallel                 = TrueIfUnix(),
@@ -160,6 +165,7 @@ GenericML <- function(Z, D, Y,
   stopifnot(is.numeric(min_variation) & min_variation > 0)
   stopifnot(is.character(learners_GenericML))
   stopifnot(is.character(learner_propensity_score) | is.numeric(learner_propensity_score))
+  InputChecks_stratify(stratify)
 
   # if no input provided, set Z_CLAN equal to Z
   if(is.null(Z_CLAN)) Z_CLAN <- Z
@@ -174,12 +180,6 @@ GenericML <- function(Z, D, Y,
 
   } # IF
 
-
-  if(parallel & !TrueIfUnix()){
-    message("Parallelization is currently only supported on Unix systems (you are using Windows). Therefore, no parallelization will be employed", call. = FALSE)
-    parallel <- FALSE
-
-  } # IF
 
   # render the learners mlr3 environments
   learners <- lapply(1:length(learners_GenericML),
@@ -234,6 +234,7 @@ GenericML <- function(Z, D, Y,
                                vcov_GATES                 = setup_vcov_align(vcov_GATES), # align for consistency
                                equal_variances_CLAN       = equal_variances_CLAN,
                                prop_aux                   = prop_aux,
+                               stratify                   = stratify,
                                quantile_cutoffs           = quantile_cutoffs,
                                diff_GATES                 = diff_GATES,
                                diff_CLAN                  = diff_CLAN,
@@ -245,12 +246,15 @@ GenericML <- function(Z, D, Y,
                                store_learners             = store_learners,
                                store_splits               = store_splits)
 
-  # extract the best learners
-  best.learners <- get.best.learners(gen.ml.different.learners$generic_targets)
+  # extract the generic targets
+  generic_targets <- gen.ml.different.learners$generic_targets
+
+  # find the best learners
+  best.learners <- get.best.learners(generic_targets = generic_targets)
 
 
   ### step 3: perform VEIN analysis ----
-  vein <- VEIN(gen.ml.different.learners$generic_targets, best.learners)
+  vein <- VEIN(generic_targets = generic_targets, best.learners.obj = best.learners)
 
   # return instance of S3 class 'GenericML'
   return(
@@ -261,6 +265,7 @@ GenericML <- function(Z, D, Y,
                                    mlr3_objects = propensity_scores.obj$mlr3_objects),
           GenericML_single = gen.ml.different.learners$genericML.by.split,
           splits = gen.ml.different.learners$splits,
+          generic_targets = generic_targets,
           arguments = list(learners_GenericML       = learners_GenericML,
                            learner_propensity_score = learner_propensity_score,
                            num_splits               = num_splits,
