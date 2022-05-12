@@ -1,6 +1,6 @@
 Package: GenericML
 Title: Generic Machine Learning Inference
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: 
     c(person(given = "Max",
            family = "Welz",
@@ -36,6 +36,6 @@ Imports: sandwich, lmtest, splitstackshape, stats, parallel, abind
 Suggests: glmnet, ranger, rpart, e1071, testthat (>= 3.0.0)
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2022-05-06 13:31:34 UTC; mwelz
+Packaged: 2022-05-12 12:01:39 UTC; mwelz
 Repository: CRAN
-Date/Publication: 2022-05-06 13:50:02 UTC
+Date/Publication: 2022-05-12 14:00:01 UTC
