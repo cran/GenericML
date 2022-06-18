@@ -1,3 +1,11 @@
+# GenericML 0.2.2
+
+- Added class structure for accessor function objects
+- Ensured consistency in documentation.
+- Added new function, `heterogeneity_CLAN()`, that investigates the presence of treatment effect heterogeneity along all CLAN variables.
+- Added function `get_best()` that returns the best learner.
+- Changed behavior of `get_CLAN()` to not plot ATE estimates when `plot = TRUE`.
+
 # GenericML 0.2.1
 
 - Replaced `isa()` with `inherits()` to avoid reliance on `R >= 4.1`.
